@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const product = require("./product");
+const { object } = require("webidl-conversions");
 
 const { Schema } = mongoose;
 
@@ -24,6 +24,13 @@ const userSchema = new Schema({
         type: Number,
         required: true,
       },
+    },
+  ],
+  orders: [
+    {
+      type: mongoose.Types.ObjectId,
+      required: true,
+      ref: "Order",
     },
   ],
 });
