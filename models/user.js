@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const product = require("./product");
 
 const { Schema } = mongoose;
 
@@ -12,11 +13,19 @@ const userSchema = new Schema({
     required: true,
     minlength: 8,
   },
-  shoppingCart: {
-    type: mongoose.Types.ObjectId,
-    required: true,
-    ref: "Product",
-  },
+  shoppingCart: [
+    {
+      productId: {
+        type: mongoose.Types.ObjectId,
+        required: true,
+        ref: "Product",
+      },
+      quantity: {
+        type: Number,
+        required: true,
+      },
+    },
+  ],
 });
 
 module.exports = mongoose.model("User", userSchema);
