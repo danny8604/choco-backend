@@ -1,4 +1,8 @@
+const { validationResult } = require("express-validator");
+
 const HttpError = require("../models/http-error");
+const Order = require("../models/order");
+const Product = require("../models/product");
 const User = require("../models/user");
 
 const signup = async (req, res, next) => {
@@ -61,38 +65,143 @@ const login = async (req, res, next) => {
 };
 
 const addToCart = async (req, res, next) => {
-  const itemId = req.params.itemId;
-  console.log(itemId);
+  const { productId } = req.body;
 
   try {
-    const user = await User.findOne({ email: "test@test.com" });
-    const test = user.shoppingCart.find(
-      (product) => product.productId.toString() === itemId
+    const user = await User.findOne({ email: "test1@test.com" });
+    const existingItemIndex = user.shoppingCart.findIndex(
+      (product) => product.productId.toString() === productId.toString()
     );
-    console.log(test, "RERWERWERWER");
-    if (!test) {
-      const item = new Item({
-        productId: itemId,
+    const product = await Product.findOne({ _id: productId });
+    const updatedCartItems = [...user.shoppingCart];
+
+    if (existingItemIndex === -1) {
+      updatedCartItems.push({
+        productId: product._id,
         quantity: 1,
       });
-      user.shoppingCart.push(item);
     }
-    if (test) {
-      user.shoppingCart;
-      console.log(test, "🐧FIND");
+    if (existingItemIndex !== -1) {
+      updatedCartItems[existingItemIndex].quantity += 1;
     }
 
+    user.shoppingCart = updatedCartItems;
     await user.save();
   } catch (err) {
     const error = new HttpError("EROROROROROR", 500);
     return next(error);
   }
 
-  res.json({ message: "Add to cart !!" });
+  res.json({ message: "Add to cart!!" });
+};
+
+const removeFromCart = async (req, res, next) => {
+  const { productId } = req.body;
+
+  try {
+    const user = await User.findOne({ email: "test1@test.com" });
+    const newCartItems = user.shoppingCart.filter(
+      (product) => product.productId.toString() !== productId
+    );
+
+    user.shoppingCart = newCartItems;
+    await user.save();
+  } catch (err) {
+    const error = new HttpError("EROROROROROR", 500);
+    return next(error);
+  }
+
+  res.json({ message: "Remove from cart!!" });
+};
+
+const editItemQuantity = async (req, res, next) => {
+  const { productId, quantity } = req.body;
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    const error = new HttpError(
+      "Invalid input passed, please check your input data.",
+      422
+    );
+    return next(error);
+  }
+
+  try {
+    const user = await User.findOne({ email: "test1@test.com" });
+    const existingItemIndex = user.shoppingCart.findIndex(
+      (product) => product.productId.toString() === productId.toString()
+    );
+    const updatedCartItems = [...user.shoppingCart];
+
+    if (existingItemIndex === -1) {
+      const error = new HttpError(
+        "This product does not exist in your shopping cart.",
+        500
+      );
+      return next(error);
+    }
+    if (existingItemIndex !== -1) {
+      updatedCartItems[existingItemIndex].quantity = quantity;
+    }
+
+    user.shoppingCart = updatedCartItems;
+    await user.save();
+  } catch (err) {
+    const error = new HttpError("EROROROROROR", 500);
+    return next(error);
+  }
+
+  res.status(200).json({ message: "Edit successed." });
+};
+
+const checkout = async (req, res, next) => {
+  try {
+    const user = await User.findOne({ email: "test1@test.com" });
+    const products = user.shoppingCart.map((item) => {
+      return { productId: item.productId, quantity: item.quantity };
+    });
+    const order = new Order({
+      user: {
+        email: user.email,
+        userId: user._id,
+      },
+      products: products,
+    });
+    user.orders.push(order);
+    user.shoppingCart = [];
+    console.log(order, "order");
+
+    await order.save();
+    await user.save();
+  } catch (err) {
+    const error = new HttpError(
+      "checkout failed, please try again later.",
+      403
+    );
+    return next(error);
+  }
+
+  res.status(200).json({ message: "checkout successed." });
+};
+
+let user;
+const orders = async (req, res, next) => {
+  try {
+    user = await User.findOne({ email: "test1@test.com" }).populate("orders");
+  } catch (err) {
+    const error = new HttpError("you don't have any orders.", 403);
+    return next(error);
+  }
+
+  res.json({ message: "ORDERS", order: user.orders });
 };
 
 module.exports = {
   signup,
   login,
   addToCart,
+  removeFromCart,
+  editItemQuantity,
+  checkout,
+  orders,
 };
