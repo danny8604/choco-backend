@@ -3,12 +3,14 @@ const { check } = require("express-validator");
 const {
   signup,
   login,
+  getCart,
   addToCart,
   removeFromCart,
   editItemQuantity,
   checkout,
   orders,
 } = require("../controllers/users-controllers");
+const checkAuth = require("../models/check-auth");
 
 const router = express.Router();
 
@@ -22,6 +24,10 @@ router.post(
 );
 
 router.post("/login", login);
+
+router.use(checkAuth);
+
+router.get("/getCart/:userId", getCart);
 
 router.post("/addToCart", addToCart);
 

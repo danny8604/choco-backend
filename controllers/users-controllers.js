@@ -1,4 +1,7 @@
+const mongoose = require("mongoose");
 const { validationResult } = require("express-validator");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
 const HttpError = require("../models/http-error");
 const Order = require("../models/order");
@@ -10,7 +13,6 @@ const signup = async (req, res, next) => {
 
   try {
     const existingUser = await User.findOne({ email: email });
-    console.log(existingUser, "🐄🐄🐄🐄🐄🐄🐄🐄");
     if (existingUser) {
       const error = new HttpError(
         "User already exist, please try another user email.",
@@ -18,31 +20,33 @@ const signup = async (req, res, next) => {
       );
       return next(error);
     }
-  } catch (err) {
-    const error = new HttpError("Something went wrong.", 500);
-    return next(error);
-  }
 
-  const createUser = new User({
-    email,
-    password,
-    shoppingCart: [],
-    orders: [],
-  });
+    const bcryptPassword = await bcrypt.hash(password, 12);
 
-  try {
+    const createUser = new User({
+      email,
+      password: bcryptPassword,
+      shoppingCart: [],
+      orders: [],
+    });
+
     await createUser.save();
   } catch (err) {
-    const error = new HttpError("Signing Up failed, please try again.", 500);
+    const error = new HttpError(
+      "Something went wrong. create a user failed.",
+      500
+    );
     return next(error);
   }
 
-  res.status(200).json({ message: "Signup successed!" });
+  res.status(200).json({ success: true });
 };
 
 const login = async (req, res, next) => {
   const { email, password } = req.body;
 
+  let user;
+  let userCart;
   try {
     const existingUser = await User.findOne({ email: email });
     if (!existingUser) {
@@ -52,23 +56,86 @@ const login = async (req, res, next) => {
       );
       return next(error);
     }
-    if (password !== existingUser.password) {
-      const error = new HttpError("Something went wrong. wrong password.", 500);
+
+    // Check Password
+    const isValidPassword = await bcrypt.compare(
+      password,
+      existingUser.password
+    );
+
+    if (!isValidPassword) {
+      const error = new HttpError(
+        "Your password is not current, please try again later.",
+        403
+      );
       return next(error);
     }
+
+    const token = jwt.sign(
+      {
+        userId: existingUser._id,
+        email: existingUser.email,
+      },
+      "OLAOLAOLAOLAOLAOLAOLAOLAOLAOLA",
+      { expiresIn: "1h" }
+    );
+
+    if (!token) {
+      const error = new HttpError(
+        "Something went wrong. please try again later.",
+        500
+      );
+      return next(error);
+    }
+
+    const getCart = await User.findById(existingUser._id).populate({
+      path: "shoppingCart",
+      populate: {
+        path: "productId",
+      },
+    });
+    userCart = getCart.shoppingCart;
+    console.log(userCart, "CART");
+
+    user = {
+      userId: existingUser._id,
+      email: existingUser.email,
+      token: token,
+    };
   } catch (err) {
     const error = new HttpError("Something went wrong.", 500);
     return next(error);
   }
 
-  res.status(200).json({ message: "logged in successed." });
+  res.status(200).json({ user: user, userCart: userCart });
+};
+
+const getCart = async (req, res, next) => {
+  const userId = req.params.userId;
+  console.log(userId, "userId");
+
+  let user;
+  try {
+    user = await User.findById(userId).populate({
+      path: "shoppingCart",
+      populate: {
+        path: "productId",
+      },
+    });
+  } catch (err) {
+    const error = new HttpError("EROROROROROR", 500);
+    return next(error);
+  }
+
+  res.json({ cart: user.shoppingCart });
 };
 
 const addToCart = async (req, res, next) => {
   const { productId } = req.body;
 
   try {
-    const user = await User.findOne({ email: "test1@test.com" });
+    const user = await User.findOne({ _id: req.userId });
+    console.log(user, "🦔🦔TEST USER");
     const existingItemIndex = user.shoppingCart.findIndex(
       (product) => product.productId.toString() === productId.toString()
     );
@@ -86,20 +153,34 @@ const addToCart = async (req, res, next) => {
     }
 
     user.shoppingCart = updatedCartItems;
+
     await user.save();
   } catch (err) {
     const error = new HttpError("EROROROROROR", 500);
     return next(error);
   }
 
-  res.json({ message: "Add to cart!!" });
+  let user;
+  try {
+    user = await User.findById(req.userId).populate({
+      path: "shoppingCart",
+      populate: {
+        path: "productId",
+      },
+    });
+  } catch (err) {
+    const error = new HttpError("EROROROROROR", 500);
+    return next(error);
+  }
+
+  res.json({ cart: user.shoppingCart });
 };
 
 const removeFromCart = async (req, res, next) => {
   const { productId } = req.body;
 
   try {
-    const user = await User.findOne({ email: "test1@test.com" });
+    const user = await User.findOne({ _id: req.userId });
     const newCartItems = user.shoppingCart.filter(
       (product) => product.productId.toString() !== productId
     );
@@ -127,7 +208,7 @@ const editItemQuantity = async (req, res, next) => {
   }
 
   try {
-    const user = await User.findOne({ email: "test1@test.com" });
+    const user = await User.findOne({ _id: req.userId });
     const existingItemIndex = user.shoppingCart.findIndex(
       (product) => product.productId.toString() === productId.toString()
     );
@@ -156,7 +237,7 @@ const editItemQuantity = async (req, res, next) => {
 
 const checkout = async (req, res, next) => {
   try {
-    const user = await User.findOne({ email: "test1@test.com" });
+    const user = await User.findOne({ _id: req.userId });
     const products = user.shoppingCart.map((item) => {
       return { productId: item.productId, quantity: item.quantity };
     });
@@ -169,10 +250,12 @@ const checkout = async (req, res, next) => {
     });
     user.orders.push(order);
     user.shoppingCart = [];
-    console.log(order, "order");
 
-    await order.save();
-    await user.save();
+    const sess = await mongoose.startSession();
+    sess.startTransaction();
+    await order.save({ session: sess });
+    await user.save({ session: sess });
+    await sess.commitTransaction();
   } catch (err) {
     const error = new HttpError(
       "checkout failed, please try again later.",
@@ -184,10 +267,10 @@ const checkout = async (req, res, next) => {
   res.status(200).json({ message: "checkout successed." });
 };
 
-let user;
 const orders = async (req, res, next) => {
+  let user;
   try {
-    user = await User.findOne({ email: "test1@test.com" }).populate("orders");
+    user = await User.findOne({ _id: req.userId }).populate("orders");
   } catch (err) {
     const error = new HttpError("you don't have any orders.", 403);
     return next(error);
@@ -199,6 +282,7 @@ const orders = async (req, res, next) => {
 module.exports = {
   signup,
   login,
+  getCart,
   addToCart,
   removeFromCart,
   editItemQuantity,

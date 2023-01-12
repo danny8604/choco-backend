@@ -6,7 +6,6 @@ const getAllProducts = async (req, res, next) => {
   let products;
   try {
     products = await Product.find();
-    console.log(products, "getAllProducts");
   } catch (err) {
     const error = new HttpError(
       "Something went wrong, please try again later.",
@@ -22,8 +21,7 @@ const getProductByPath = async (req, res, next) => {
   const path = req.params.path;
   let product;
   try {
-    product = await Product.find({ path: path });
-    console.log(product, "getProductByPath");
+    [product] = await Product.find({ path: path });
   } catch (err) {
     const error = new HttpError("Could not find this product.🐄", 404);
     return next(error);
@@ -40,7 +38,6 @@ const getProductByCategory = async (req, res, next) => {
   let products;
   try {
     products = await Product.find({ category: category });
-    console.log(products, "getProductByCategory");
   } catch (err) {
     const error = new HttpError("Could not find this product.🐄", 404);
     return next(error);
@@ -55,7 +52,6 @@ const searchProductByName = async (req, res, next) => {
   let products;
   try {
     products = await Product.find({ productName: name });
-    console.log(products, "searchProductByName");
   } catch (err) {
     const error = new HttpError("Could not find this product", 500);
     return next(error);
