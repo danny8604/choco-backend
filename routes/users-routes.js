@@ -3,7 +3,6 @@ const { check } = require("express-validator");
 const {
   signup,
   login,
-  getCart,
   addToCart,
   removeFromCart,
   editItemQuantity,
@@ -26,8 +25,6 @@ router.post(
 router.post("/login", login);
 
 router.use(checkAuth);
-
-router.get("/getCart/:userId", getCart);
 
 router.post("/addToCart", addToCart);
 

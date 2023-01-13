@@ -110,26 +110,6 @@ const login = async (req, res, next) => {
   res.status(200).json({ user: user, userCart: userCart });
 };
 
-const getCart = async (req, res, next) => {
-  const userId = req.params.userId;
-  console.log(userId, "userId");
-
-  let user;
-  try {
-    user = await User.findById(userId).populate({
-      path: "shoppingCart",
-      populate: {
-        path: "productId",
-      },
-    });
-  } catch (err) {
-    const error = new HttpError("EROROROROROR", 500);
-    return next(error);
-  }
-
-  res.json({ cart: user.shoppingCart });
-};
-
 const addToCart = async (req, res, next) => {
   const { productId } = req.body;
 
@@ -282,7 +262,6 @@ const orders = async (req, res, next) => {
 module.exports = {
   signup,
   login,
-  getCart,
   addToCart,
   removeFromCart,
   editItemQuantity,
