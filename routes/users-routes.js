@@ -6,8 +6,11 @@ const {
   addToCart,
   removeFromCart,
   editItemQuantity,
-  checkout,
-  orders,
+  userCheckout,
+  getOrders,
+  getUserOrders,
+  changePassword,
+  payment,
 } = require("../controllers/users-controllers");
 const checkAuth = require("../models/check-auth");
 
@@ -24,7 +27,13 @@ router.post(
 
 router.post("/login", login);
 
+router.post("/stripe", payment);
+
+router.get("/getOrders/:orderId", getOrders);
+
 router.use(checkAuth);
+
+router.get("/getUserOrders", getUserOrders);
 
 router.post("/addToCart", addToCart);
 
@@ -36,8 +45,24 @@ router.patch(
   editItemQuantity
 );
 
-router.get("/checkout", checkout);
+router.post(
+  "/userCheckout",
+  [
+    check("name").notEmpty(),
+    check("address").notEmpty(),
+    check("phone").isNumeric().isInt().isLength({ min: 10 }),
+  ],
+  userCheckout
+);
 
-router.get("/orders", orders);
+router.post(
+  "/changePassword",
+  [
+    check("originPassword").notEmpty().isLength({ min: 8 }),
+    check("newPassword").notEmpty().isLength({ min: 8 }),
+    check("confirmPassword").notEmpty().isLength({ min: 8 }),
+  ],
+  changePassword
+);
 
 module.exports = router;

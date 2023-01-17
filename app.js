@@ -1,7 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
-
+require("dotenv").config();
 const productsRoutes = require("./routes/products-routes");
 const usersRoutes = require("./routes/users-routes");
 const HttpError = require("./models/http-error");
@@ -31,18 +31,8 @@ app.use((req, res, next) => {
 
 mongoose.set("strictQuery", false);
 
-// main().catch((err) => console.log(err));
-
-// async function main() {
-//   await mongoose.connect(
-//     "mongodb+srv://choco:nuRpPYQPgNd7Kai3@cluster0.glivzlo.mongodb.net/choco?retryWrites=true&w=majority"
-//   );
-//   app.listen(5000);
-// }
 mongoose
-  .connect(
-    `mongodb+srv://choco:nuRpPYQPgNd7Kai3@cluster0.glivzlo.mongodb.net/choco?retryWrites=true&w=majority`
-  )
+  .connect(process.env.MONGODB_URL)
   .then(() => {
     app.listen(5000);
   })

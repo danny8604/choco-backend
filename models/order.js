@@ -19,6 +19,7 @@ const orderSchema = new Schema(
         productId: {
           type: mongoose.Types.ObjectId,
           required: true,
+          ref: "Product",
         },
         quantity: {
           type: Number,
@@ -26,6 +27,14 @@ const orderSchema = new Schema(
         },
       },
     ],
+    totalQuantity: {
+      type: Number,
+      required: true,
+    },
+    totalPrice: {
+      type: Number,
+      required: true,
+    },
   },
   { timestamps: true }
 );

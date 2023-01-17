@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const { validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const stripe = require("stripe")(process.env.STRIPE_PRIVATE_KEY);
 
 const HttpError = require("../models/http-error");
 const Order = require("../models/order");
@@ -95,7 +96,6 @@ const login = async (req, res, next) => {
       },
     });
     userCart = getCart.shoppingCart;
-    console.log(userCart, "CART");
 
     user = {
       userId: existingUser._id,
@@ -115,7 +115,6 @@ const addToCart = async (req, res, next) => {
 
   try {
     const user = await User.findOne({ _id: req.userId });
-    console.log(user, "🦔🦔TEST USER");
     const existingItemIndex = user.shoppingCart.findIndex(
       (product) => product.productId.toString() === productId.toString()
     );
@@ -172,7 +171,20 @@ const removeFromCart = async (req, res, next) => {
     return next(error);
   }
 
-  res.json({ message: "Remove from cart!!" });
+  let user;
+  try {
+    user = await User.findById(req.userId).populate({
+      path: "shoppingCart",
+      populate: {
+        path: "productId",
+      },
+    });
+  } catch (err) {
+    const error = new HttpError("EROROROROROR", 500);
+    return next(error);
+  }
+
+  res.json({ cart: user.shoppingCart });
 };
 
 const editItemQuantity = async (req, res, next) => {
@@ -212,21 +224,59 @@ const editItemQuantity = async (req, res, next) => {
     return next(error);
   }
 
-  res.status(200).json({ message: "Edit successed." });
+  let user;
+  try {
+    user = await User.findById(req.userId).populate({
+      path: "shoppingCart",
+      populate: {
+        path: "productId",
+      },
+    });
+  } catch (err) {
+    const error = new HttpError("EROROROROROR", 500);
+    return next(error);
+  }
+
+  res.json({ cart: user.shoppingCart });
 };
 
-const checkout = async (req, res, next) => {
+const userCheckout = async (req, res, next) => {
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    const error = new HttpError(
+      "Invalid input passed, please check your input data.",
+      422
+    );
+    return next(error);
+  }
+
+  let order;
   try {
-    const user = await User.findOne({ _id: req.userId });
+    const user = await User.findOne({ _id: req.userId }).populate({
+      path: "shoppingCart",
+      populate: {
+        path: "productId",
+      },
+    });
     const products = user.shoppingCart.map((item) => {
       return { productId: item.productId, quantity: item.quantity };
     });
-    const order = new Order({
+    const totalPrice = user.shoppingCart.reduce((acc, cur) => {
+      return (acc += cur.quantity * cur.productId.price);
+    }, 0);
+    const totalQuantity = user.shoppingCart.reduce((acc, cur) => {
+      return (acc += cur.quantity);
+    }, 0);
+
+    order = new Order({
       user: {
         email: user.email,
         userId: user._id,
       },
       products: products,
+      totalQuantity: totalQuantity,
+      totalPrice: totalPrice,
     });
     user.orders.push(order);
     user.shoppingCart = [];
@@ -238,25 +288,145 @@ const checkout = async (req, res, next) => {
     await sess.commitTransaction();
   } catch (err) {
     const error = new HttpError(
-      "checkout failed, please try again later.",
+      "userCheckout failed, please try again later.",
       403
     );
     return next(error);
   }
 
-  res.status(200).json({ message: "checkout successed." });
+  res.json({ order: order._id });
 };
 
-const orders = async (req, res, next) => {
-  let user;
+////////////////////////////////////////////////////////////////
+
+const storeItems = new Map([
+  [1, { price: 10000, name: "SPY" }],
+  [2, { price: 20000, name: "Family" }],
+]);
+
+const payment = async (req, res, next) => {
+  const { items } = req.body;
+  console.log(process.env.SERVER_URL, "as");
   try {
-    user = await User.findOne({ _id: req.userId }).populate("orders");
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "payment",
+      line_items: items.map((item) => {
+        const storeItem = storeItems.get(item.id);
+        return {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: storeItem.name,
+            },
+            unit_amount: storeItem.price,
+          },
+          quantity: item.quantity,
+        };
+      }),
+      success_url: process.env.SERVER_URL,
+      cancel_url: process.env.SERVER_URL,
+    });
+    console.log(session, "session");
+    res.json({ url: session.url });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const getOrders = async (req, res, next) => {
+  const orderId = req.params.orderId;
+
+  let order;
+  try {
+    order = await Order.findById(orderId).populate({
+      path: "products",
+      populate: {
+        path: "productId",
+      },
+    });
   } catch (err) {
     const error = new HttpError("you don't have any orders.", 403);
     return next(error);
   }
 
-  res.json({ message: "ORDERS", order: user.orders });
+  res.json({ order: order });
+};
+
+const getUserOrders = async (req, res, next) => {
+  let user;
+  try {
+    user = await User.findById(req.userId).populate({
+      path: "orders",
+      populate: {
+        path: "products",
+        populate: {
+          path: "productId",
+        },
+      },
+    });
+  } catch (err) {
+    const error = new HttpError("EROROROROROR", 500);
+    return next(error);
+  }
+
+  res.json({ orders: user.orders });
+};
+
+const changePassword = async (req, res, next) => {
+  const { originPassword, newPassword, confirmPassword } = req.body;
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    const error = new HttpError(
+      "Invalid input passed, please check your input data.",
+      422
+    );
+    return next(error);
+  }
+  console.log(originPassword, newPassword, confirmPassword);
+
+  try {
+    const existingUser = await User.findById(req.userId);
+    if (!existingUser) {
+      const error = new HttpError(
+        "User not exist, please try signup an account.",
+        401
+      );
+      return next(error);
+    }
+
+    if (newPassword !== confirmPassword) {
+      const error = new HttpError(
+        "New password not equal confirm password, please try again later.",
+        401
+      );
+      return next(error);
+    }
+
+    const isValidPassword = await bcrypt.compare(
+      originPassword,
+      existingUser.password
+    );
+
+    if (!isValidPassword) {
+      const error = new HttpError(
+        "Your origin password is not correct, please try again later.",
+        403
+      );
+      return next(error);
+    }
+
+    const newHashPassword = await bcrypt.hash(newPassword, 12);
+    console.log(newHashPassword);
+    existingUser.password = newHashPassword;
+    existingUser.save();
+  } catch (err) {
+    const error = new HttpError("Something went wrong.");
+    return next(error);
+  }
+
+  res.json({ message: "Change success." });
 };
 
 module.exports = {
@@ -265,6 +435,9 @@ module.exports = {
   addToCart,
   removeFromCart,
   editItemQuantity,
-  checkout,
-  orders,
+  userCheckout,
+  getOrders,
+  getUserOrders,
+  changePassword,
+  payment,
 };
