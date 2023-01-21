@@ -43,7 +43,7 @@ const getProductByCategory = async (req, res, next) => {
     return next(error);
   }
 
-  res.status(200).json({ products: products });
+  res.json({ products: products });
 };
 
 const searchProductByName = async (req, res, next) => {
@@ -65,7 +65,7 @@ const searchProductByName = async (req, res, next) => {
     return next(error);
   }
 
-  res.status(200).json({ product: products });
+  res.json({ product: products });
 };
 
 module.exports = {

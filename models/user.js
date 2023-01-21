@@ -25,6 +25,15 @@ const userSchema = new Schema({
       },
     },
   ],
+  favoriteItems: [
+    {
+      productId: {
+        type: mongoose.Types.ObjectId,
+        required: true,
+        ref: "Product",
+      },
+    },
+  ],
   orders: [
     {
       type: mongoose.Types.ObjectId,

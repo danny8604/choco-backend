@@ -10,7 +10,10 @@ const {
   getOrders,
   getUserOrders,
   changePassword,
-  payment,
+  stripeCheckout,
+  favoriteItem,
+  getFavoriteItem,
+  getUserCart,
 } = require("../controllers/users-controllers");
 const checkAuth = require("../models/check-auth");
 
@@ -27,13 +30,13 @@ router.post(
 
 router.post("/login", login);
 
-router.post("/stripe", payment);
-
 router.get("/getOrders/:orderId", getOrders);
 
 router.use(checkAuth);
 
 router.get("/getUserOrders", getUserOrders);
+
+router.get("/getUserCart", getUserCart);
 
 router.post("/addToCart", addToCart);
 
@@ -50,7 +53,7 @@ router.post(
   [
     check("name").notEmpty(),
     check("address").notEmpty(),
-    check("phone").isNumeric().isInt().isLength({ min: 10 }),
+    check("phone").isNumeric().isInt().isLength({ min: 9 }),
   ],
   userCheckout
 );
@@ -64,5 +67,11 @@ router.post(
   ],
   changePassword
 );
+
+router.post("/stripe", stripeCheckout);
+
+router.post("/favoriteItem", favoriteItem);
+
+router.get("/favoriteItem/:productId", getFavoriteItem);
 
 module.exports = router;

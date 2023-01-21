@@ -40,7 +40,7 @@ const signup = async (req, res, next) => {
     return next(error);
   }
 
-  res.status(200).json({ success: true });
+  res.json({ success: true });
 };
 
 const login = async (req, res, next) => {
@@ -242,6 +242,7 @@ const editItemQuantity = async (req, res, next) => {
 
 const userCheckout = async (req, res, next) => {
   const errors = validationResult(req);
+  const { name, address, phone } = req.body;
 
   if (!errors.isEmpty()) {
     const error = new HttpError(
@@ -271,6 +272,9 @@ const userCheckout = async (req, res, next) => {
 
     order = new Order({
       user: {
+        name: name,
+        address: address,
+        phone: phone,
         email: user.email,
         userId: user._id,
       },
@@ -294,45 +298,48 @@ const userCheckout = async (req, res, next) => {
     return next(error);
   }
 
-  res.json({ order: order._id });
+  res.json({ orderNumber: order._id, orderDate: order.createdAt });
 };
 
 ////////////////////////////////////////////////////////////////
 
-const storeItems = new Map([
-  [1, { price: 10000, name: "SPY" }],
-  [2, { price: 20000, name: "Family" }],
-]);
-
-const payment = async (req, res, next) => {
+const stripeCheckout = async (req, res, next) => {
   const { items } = req.body;
-  console.log(process.env.SERVER_URL, "as");
+
   try {
+    const user = await User.findById(req.userId).populate({
+      path: "shoppingCart",
+      populate: {
+        path: "productId",
+      },
+    });
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
+      customer_email: user.email,
       mode: "payment",
       line_items: items.map((item) => {
-        const storeItem = storeItems.get(item.id);
         return {
           price_data: {
             currency: "usd",
             product_data: {
-              name: storeItem.name,
+              name: item.productId.productName,
             },
-            unit_amount: storeItem.price,
+            unit_amount: item.productId.price * 100,
           },
           quantity: item.quantity,
         };
       }),
-      success_url: process.env.SERVER_URL,
-      cancel_url: process.env.SERVER_URL,
+      success_url: `${process.env.SERVER_URL}/checkout?success=true`,
+      cancel_url: `${process.env.SERVER_URL}/checkout?canceled=true`,
     });
-    console.log(session, "session");
     res.json({ url: session.url });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
+//////////////////////////////////////////////////
 
 const getOrders = async (req, res, next) => {
   const orderId = req.params.orderId;
@@ -384,7 +391,6 @@ const changePassword = async (req, res, next) => {
     );
     return next(error);
   }
-  console.log(originPassword, newPassword, confirmPassword);
 
   try {
     const existingUser = await User.findById(req.userId);
@@ -418,7 +424,6 @@ const changePassword = async (req, res, next) => {
     }
 
     const newHashPassword = await bcrypt.hash(newPassword, 12);
-    console.log(newHashPassword);
     existingUser.password = newHashPassword;
     existingUser.save();
   } catch (err) {
@@ -427,6 +432,81 @@ const changePassword = async (req, res, next) => {
   }
 
   res.json({ message: "Change success." });
+};
+
+const favoriteItem = async (req, res, next) => {
+  const { productId } = req.body;
+
+  try {
+    const user = await User.findById(req.userId);
+    const product = await Product.findOne({ _id: productId });
+    const existedItem = user.favoriteItems.find(
+      (item) => item.productId.toString() === productId
+    );
+
+    if (existedItem && product) {
+      const newFavoriteItems = user.favoriteItems.filter(
+        (item) => item.productId.toString() !== productId
+      );
+      user.favoriteItems = newFavoriteItems;
+      // user.save();
+      // return res.json({ favoriteItem: false });
+    }
+    if (!(existedItem && product)) {
+      user.favoriteItems.push({
+        productId: productId,
+      });
+      // user.save();
+      // return res.json({ favoriteItem: true });
+    }
+    user.save();
+    res.json({ user: user });
+  } catch (err) {
+    const error = new HttpError("EROROROROROR", 500);
+    return next(error);
+  }
+};
+
+const getFavoriteItem = async (req, res, next) => {
+  const { productId } = req.params;
+
+  try {
+    const user = await User.findById(req.userId);
+
+    console.log(user, "user🐄🐄🐄🐄");
+
+    const product = await Product.findOne({ _id: productId });
+    const existedItem = user.favoriteItems.find(
+      (item) => item.productId.toString() === productId
+    );
+
+    // if (existedItem && product) {
+    //   return res.json({ favoriteItem: true });
+    // }
+    // if (!(existedItem && product)) {
+    //   return res.json({ favoriteItem: false });
+    // }
+    res.json({ user: user });
+  } catch (err) {
+    const error = new HttpError("EROROROROROR", 500);
+    return next(error);
+  }
+};
+
+const getUserCart = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.userId).populate({
+      path: "shoppingCart",
+      populate: {
+        path: "productId",
+      },
+    });
+
+    res.json({ userCart: user.shoppingCart });
+  } catch (err) {
+    const error = new HttpError("EROROROROROR", 500);
+    return next(error);
+  }
 };
 
 module.exports = {
@@ -439,5 +519,8 @@ module.exports = {
   getOrders,
   getUserOrders,
   changePassword,
-  payment,
+  stripeCheckout,
+  favoriteItem,
+  getFavoriteItem,
+  getUserCart,
 };
