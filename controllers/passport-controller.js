@@ -1,6 +1,7 @@
 const HttpError = require("../models/http-error");
 const User = require("../models/user");
 const jwt = require("jsonwebtoken");
+require("dotenv").config();
 
 const googleFailed = (req, res, next) => {
   res.status(401).json({
@@ -29,7 +30,7 @@ const googleSuccess = async (req, res, next) => {
         userId: existingUser.id,
         email: existingUser.email,
       },
-      "OLAOLAOLAOLAOLAOLAOLAOLAOLAOLA",
+      process.env.JWT_TOKEN,
       { expiresIn: "1h" }
     );
     if (!token) {

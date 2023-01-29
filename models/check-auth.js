@@ -1,5 +1,6 @@
 const HttpError = require("./http-error");
 const jwt = require("jsonwebtoken");
+require("dotenv").config();
 
 const checkAuth = (req, res, next) => {
   if (req.method === "OPTIONS") {
@@ -11,7 +12,7 @@ const checkAuth = (req, res, next) => {
     const error = new HttpError("Authorization error.", 402);
     throw error;
   }
-  const decodeToken = jwt.verify(token, "OLAOLAOLAOLAOLAOLAOLAOLAOLAOLA");
+  const decodeToken = jwt.verify(token, process.env.JWT_TOKEN);
 
   req.userId = decodeToken.userId;
   next();

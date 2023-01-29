@@ -79,7 +79,7 @@ const login = async (req, res, next) => {
         userId: existingUser._id,
         email: existingUser.email,
       },
-      "OLAOLAOLAOLAOLAOLAOLAOLAOLAOLA",
+      process.env.JWT_TOKEN,
       { expiresIn: "1h" }
     );
 
