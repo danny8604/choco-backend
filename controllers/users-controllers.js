@@ -331,8 +331,8 @@ const stripeCheckout = async (req, res, next) => {
           quantity: item.quantity,
         };
       }),
-      success_url: `${process.env.SERVER_URL}/?success=true`,
-      cancel_url: `${process.env.SERVER_URL}/?canceled=true`,
+      success_url: `${process.env.SERVER_URL}/checkout?success=true`,
+      cancel_url: `${process.env.SERVER_URL}/checkout?canceled=true`,
     });
 
     res.json({ url: session.url });
