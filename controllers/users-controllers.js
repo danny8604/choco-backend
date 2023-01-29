@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+require("dotenv").config();
 const { validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
@@ -28,6 +29,7 @@ const signup = async (req, res, next) => {
       email,
       password: bcryptPassword,
       shoppingCart: [],
+      favoriteItems: [],
       orders: [],
     });
 
@@ -305,7 +307,6 @@ const userCheckout = async (req, res, next) => {
 
 const stripeCheckout = async (req, res, next) => {
   const { items } = req.body;
-
   try {
     const user = await User.findById(req.userId).populate({
       path: "shoppingCart",
@@ -333,6 +334,7 @@ const stripeCheckout = async (req, res, next) => {
       success_url: `${process.env.SERVER_URL}/checkout?success=true`,
       cancel_url: `${process.env.SERVER_URL}/checkout?canceled=true`,
     });
+
     res.json({ url: session.url });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -434,59 +436,70 @@ const changePassword = async (req, res, next) => {
   res.json({ message: "Change success." });
 };
 
-const favoriteItem = async (req, res, next) => {
+const favoriteItems = async (req, res, next) => {
   const { productId } = req.body;
 
   try {
-    const user = await User.findById(req.userId);
+    const user = await User.findById(req.userId).populate({
+      path: "favoriteItems",
+      populate: "productId",
+    });
     const product = await Product.findOne({ _id: productId });
     const existedItem = user.favoriteItems.find(
-      (item) => item.productId.toString() === productId
+      (item) => item.productId._id.toString() === productId
     );
 
     if (existedItem && product) {
-      const newFavoriteItems = user.favoriteItems.filter(
-        (item) => item.productId.toString() !== productId
-      );
+      const newFavoriteItems = user.favoriteItems.filter((item) => {
+        console.log(item, "🦔🦔🦔🦔");
+        return item.productId._id.toString() !== productId;
+      });
       user.favoriteItems = newFavoriteItems;
       // user.save();
       // return res.json({ favoriteItem: false });
     }
     if (!(existedItem && product)) {
       user.favoriteItems.push({
-        productId: productId,
+        productId: product,
       });
       // user.save();
       // return res.json({ favoriteItem: true });
     }
     user.save();
-    res.json({ user: user });
+    res.json({ favoriteItems: user.favoriteItems });
   } catch (err) {
     const error = new HttpError("EROROROROROR", 500);
     return next(error);
   }
 };
 
-const getFavoriteItem = async (req, res, next) => {
-  const { productId } = req.params;
+const getFavoriteItems = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.userId).populate({
+      path: "favoriteItems",
+      populate: "productId",
+    });
+
+    res.json({ favoriteItems: user.favoriteItems });
+  } catch (err) {
+    const error = new HttpError("EROROROROROR", 500);
+    return next(error);
+  }
+};
+
+const getFavoriteItemsPage = async (req, res, next) => {
+  const perPage = 5;
+  const page = req.params.items_page;
 
   try {
-    const user = await User.findById(req.userId);
+    const user = await User.findById(req.userId).populate({
+      path: "favoriteItems",
+      populate: "productId",
+    });
+    const data = user.favoriteItems.slice((page - 1) * perPage, page * perPage);
+    console.log(user.favoriteItems, "user.favoriteItems");
 
-    console.log(user, "user🐄🐄🐄🐄");
-
-    const product = await Product.findOne({ _id: productId });
-    const existedItem = user.favoriteItems.find(
-      (item) => item.productId.toString() === productId
-    );
-
-    // if (existedItem && product) {
-    //   return res.json({ favoriteItem: true });
-    // }
-    // if (!(existedItem && product)) {
-    //   return res.json({ favoriteItem: false });
-    // }
-    res.json({ user: user });
+    res.json({ favoriteItems: data });
   } catch (err) {
     const error = new HttpError("EROROROROROR", 500);
     return next(error);
@@ -520,7 +533,8 @@ module.exports = {
   getUserOrders,
   changePassword,
   stripeCheckout,
-  favoriteItem,
-  getFavoriteItem,
+  favoriteItems,
+  getFavoriteItems,
   getUserCart,
+  getFavoriteItemsPage,
 };

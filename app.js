@@ -1,28 +1,47 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
-require("dotenv").config();
-const productsRoutes = require("./routes/products-routes");
-const usersRoutes = require("./routes/users-routes");
+const productsRoute = require("./routes/products-routes");
+const usersRoute = require("./routes/users-routes");
+const passportRoute = require("./routes/passport-routes");
 const HttpError = require("./models/http-error");
+
+require("dotenv").config();
+
+const passportSetup = require("./passport");
+//
+const cookieSession = require("cookie-session");
+const passport = require("passport");
+const cors = require("cors");
 
 const app = express();
 
+app.use(
+  cookieSession({
+    name: "session",
+    keys: ["danny"],
+    maxAge: 1000 * 60 * 30,
+  })
+);
+
 app.use(bodyParser.json());
 
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, XMLHttpRequest,Authorization"
-  );
-  res.setHeader("Access-Control-Allow-methods", "GET, POST, PATCH, DELETE");
-  next();
-});
+app.use(passport.initialize());
+app.use(passport.session());
 
-app.use("/api/products", productsRoutes);
+app.use(
+  cors({
+    origin: process.env.SERVER_URL,
+    methods: "GET,POST,PUT,DELETE,PATCH",
+    credentials: true,
+  })
+);
 
-app.use("/api/users", usersRoutes);
+app.use("/api/products", productsRoute);
+
+app.use("/api/users", usersRoute);
+
+app.use("/auth", passportRoute);
 
 app.use((req, res, next) => {
   const error = new HttpError("Could not find this route.", 401);

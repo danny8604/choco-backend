@@ -11,9 +11,10 @@ const {
   getUserOrders,
   changePassword,
   stripeCheckout,
-  favoriteItem,
-  getFavoriteItem,
+  favoriteItems,
+  getFavoriteItems,
   getUserCart,
+  getFavoriteItemsPage,
 } = require("../controllers/users-controllers");
 const checkAuth = require("../models/check-auth");
 
@@ -70,8 +71,10 @@ router.post(
 
 router.post("/stripe", stripeCheckout);
 
-router.post("/favoriteItem", favoriteItem);
+router.post("/favoriteItems", favoriteItems);
 
-router.get("/favoriteItem/:productId", getFavoriteItem);
+router.get("/favoriteItems", getFavoriteItems);
+
+router.get("/favoriteItems/:items_page", getFavoriteItemsPage);
 
 module.exports = router;
