@@ -17,7 +17,6 @@ router.get(
 );
 
 router.get("/logout", (req, res) => {
-  console.log("🦔🦔🦔🦔🦔🦔🦔🦔🦔");
   req.logout();
   res.redirect(process.env.SERVER_URL);
 });
