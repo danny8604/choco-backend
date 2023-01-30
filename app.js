@@ -57,7 +57,7 @@ mongoose.set("strictQuery", false);
 mongoose
   .connect(process.env.MONGODB_URL)
   .then(() => {
-    app.listen(process.env.PORT);
+    app.listen(process.env.PORT || 5000);
   })
   .catch((error) => {
     console.log(error);
