@@ -57,6 +57,6 @@ mongoose.set("strictQuery", false);
 mongoose
   .connect(process.env.MONGODB_URL)
   .then(() => {
-    app.listen(process.env.PORT);
+    app.listen("choco-chair-backend.herokuapp.com/");
   })
   .catch((error) => {});
