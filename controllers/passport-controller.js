@@ -49,7 +49,6 @@ const googleSuccess = async (req, res, next) => {
       },
     });
 
-    console.log(getCart, "🦔🦔🦔🦔🦔🦔🦔🦔");
     userCart = getCart.shoppingCart;
     user = {
       userId: existingUser.id,

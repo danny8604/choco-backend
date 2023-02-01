@@ -34,10 +34,7 @@ passport.use(
             return done(null, profile);
           }
           return done(null, profile);
-        } catch (err) {
-          console.log(err, "🦔🦔🦔");
-          return;
-        }
+        } catch (err) {}
       };
       checkUser();
     }

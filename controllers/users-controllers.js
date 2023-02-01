@@ -451,7 +451,6 @@ const favoriteItems = async (req, res, next) => {
 
     if (existedItem && product) {
       const newFavoriteItems = user.favoriteItems.filter((item) => {
-        console.log(item, "🦔🦔🦔🦔");
         return item.productId._id.toString() !== productId;
       });
       user.favoriteItems = newFavoriteItems;
@@ -497,7 +496,6 @@ const getFavoriteItemsPage = async (req, res, next) => {
       populate: "productId",
     });
     const data = user.favoriteItems.slice((page - 1) * perPage, page * perPage);
-    console.log(user.favoriteItems, "user.favoriteItems");
 
     res.json({ favoriteItems: data });
   } catch (err) {
