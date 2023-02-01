@@ -192,7 +192,6 @@ const removeFromCart = async (req, res, next) => {
 const editItemQuantity = async (req, res, next) => {
   const { productId, quantity } = req.body;
   const errors = validationResult(req);
-
   if (!errors.isEmpty()) {
     const error = new HttpError(
       "Invalid input passed, please check your input data.",
