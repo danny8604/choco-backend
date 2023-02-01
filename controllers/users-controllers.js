@@ -114,15 +114,15 @@ const login = async (req, res, next) => {
 
 const addToCart = async (req, res, next) => {
   const { productId } = req.body;
+  console.log(productId, "producrId");
 
   try {
-    const user = await User.findOne({ _id: req.userId });
+    const user = await User.findById(req.userId);
     const existingItemIndex = user.shoppingCart.findIndex(
       (product) => product.productId.toString() === productId.toString()
     );
     const product = await Product.findOne({ _id: productId });
     const updatedCartItems = [...user.shoppingCart];
-
     if (existingItemIndex === -1) {
       updatedCartItems.push({
         productId: product._id,
@@ -192,7 +192,6 @@ const removeFromCart = async (req, res, next) => {
 const editItemQuantity = async (req, res, next) => {
   const { productId, quantity } = req.body;
   const errors = validationResult(req);
-
   if (!errors.isEmpty()) {
     const error = new HttpError(
       "Invalid input passed, please check your input data.",

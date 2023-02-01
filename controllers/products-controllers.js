@@ -19,17 +19,18 @@ const getAllProducts = async (req, res, next) => {
 
 const getProductByPath = async (req, res, next) => {
   const path = req.params.path;
-  let product;
   try {
-    [product] = await Product.find({ path: path });
+    const [product] = await Product.find({ path: path });
+    res.json({
+      product: product,
+    });
   } catch (err) {
+    res.json({
+      message: "error.",
+    });
     const error = new HttpError("Could not find this product.🐄", 404);
     return next(error);
   }
-
-  res.json({
-    product: product,
-  });
 };
 
 const getProductByCategory = async (req, res, next) => {
